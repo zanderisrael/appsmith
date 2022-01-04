@@ -504,12 +504,15 @@ export default class DataTreeEvaluator {
           const actionDependentPaths: Array<string> = [];
           const mainPath = `${entityName}.${path}`;
           // Only add dependencies for paths which exist at the moment in appsmith world
-          if (this.allKeys.hasOwnProperty(mainPath)) {
+          if (this.allKeys.hasOwnProperty(mainPath) || isJSAction(entity)) {
             // Only add dependent paths which exist in the data tree. Skip all the other paths to avoid creating
             // a cyclical dependency.
             entityDependencies.forEach((dependentPath) => {
               const completePath = `${entityName}.${dependentPath}`;
-              if (this.allKeys.hasOwnProperty(completePath)) {
+              if (
+                this.allKeys.hasOwnProperty(completePath) ||
+                isJSAction(entity)
+              ) {
                 actionDependentPaths.push(completePath);
               }
             });
@@ -976,7 +979,7 @@ export default class DataTreeEvaluator {
     entityName: string,
   ) {
     const regex = new RegExp(/^export default[\s]*?({[\s\S]*?})/);
-    const correctFormat = regex.test(entity.body);
+    const correctFormat = true;
     if (correctFormat) {
       const body = entity.body.replace(/export default/g, "");
       try {

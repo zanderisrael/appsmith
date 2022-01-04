@@ -13,6 +13,8 @@ import { isEmpty } from "lodash";
 import { getLintingErrors } from "workers/lint";
 import { completePromise } from "workers/PromisifyAction";
 import { ActionDescription } from "entities/DataTree/actionTriggers";
+import { isJSAction } from "./evaluationUtils";
+const { JSFileFactory } = require("./JSFile");
 
 export type EvalResult = {
   result: any;
@@ -191,7 +193,7 @@ export default function evaluateSync(
   evalArguments?: Array<any>,
 ): EvalResult {
   return (function() {
-    let errors: EvaluationError[] = [];
+    const errors: EvaluationError[] = [];
     let result;
     /**** Setting the eval context ****/
     const GLOBAL_DATA: Record<string, any> = createGlobalData(
@@ -207,24 +209,30 @@ export default function evaluateSync(
       false,
       evalArguments,
     );
-    // If nothing is present to evaluate, return instead of evaluating
-    if (!script.length) {
-      return {
-        errors: [],
-        result: undefined,
-        triggers: [],
-      };
-    }
+    //If nothing is present to evaluate, return instead of evaluating
+    // if (!script.length) {
+    //   return {
+    //     errors: [],
+    //     result: undefined,
+    //     triggers: [],
+    //   };
+    // }
 
-    errors = lintErrors;
+    // errors = lintErrors;
 
     // Set it to self so that the eval function can have access to it
     // as global data. This is what enables access all appsmith
     // entity properties from the global context
     for (const entity in GLOBAL_DATA) {
-      // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-      // @ts-ignore: No types available
-      self[entity] = GLOBAL_DATA[entity];
+      if (isJSAction(GLOBAL_DATA[entity])) {
+        // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+        // @ts-ignore: No types available
+        self[entity] = JSFileFactory(GLOBAL_DATA[entity]);
+      } else {
+        // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+        // @ts-ignore: No types available
+        self[entity] = GLOBAL_DATA[entity];
+      }
     }
 
     try {

@@ -3,6 +3,7 @@ import { ancestor } from "acorn-walk";
 import _ from "lodash";
 import { ECMA_VERSION } from "workers/constants";
 import { sanitizeScript } from "./evaluate";
+const detect = require("acorn-globals");
 
 /*
  * Valuable links:
@@ -34,6 +35,7 @@ enum NodeTypes {
   FunctionExpression = "FunctionExpression",
   AssignmentPattern = "AssignmentPattern",
   Literal = "Literal",
+  FunctionAbstract = "FunctionAbstract",
 }
 
 type Pattern = IdentifierNode | AssignmentPatternNode;
@@ -57,6 +59,11 @@ interface IdentifierNode extends Node {
 // doc: https://github.com/estree/estree/blob/master/es5.md#variabledeclarator
 interface VariableDeclaratorNode extends Node {
   type: NodeTypes.VariableDeclarator;
+  id: IdentifierNode;
+}
+
+interface FunctionAbstractNode extends Node {
+  type: NodeTypes.FunctionAbstract;
   id: IdentifierNode;
 }
 
@@ -99,6 +106,12 @@ const isMemberExpressionNode = (node: Node): node is MemberExpressionNode => {
 
 const isVariableDeclarator = (node: Node): node is VariableDeclaratorNode => {
   return node.type === NodeTypes.VariableDeclarator;
+};
+
+const isFunctionAbstractDeclarator = (
+  node: Node,
+): node is FunctionAbstractNode => {
+  return node.type === NodeTypes.FunctionAbstract;
 };
 
 const isFunctionDeclaration = (node: Node): node is FunctionDeclarationNode => {
@@ -299,3 +312,38 @@ const getPropertyAccessor = (propertyNode: IdentifierNode | LiteralNode) => {
     return `[${propertyNode.value}]`;
   }
 };
+
+export const getVariablesAndFunctionsFromJSFile = (code: string) => {
+  const variableDeclarations = new Set<string>();
+  const functionDeclarations = new Set<string>();
+
+  let ast: Node = { end: 0, start: 0, type: "" };
+  try {
+    const sanitizedScript = sanitizeScript(code);
+    ast = getAST(sanitizedScript);
+  } catch (e) {
+    if (e instanceof SyntaxError) {
+      return [];
+    }
+    throw e;
+  }
+
+  ancestor(ast, {
+    VariableDeclarator(node: Node) {
+      // keep a track of declared variables so they can be
+      // subtracted from the final list of identifiers
+      if (isVariableDeclarator(node)) {
+        variableDeclarations.add(node.id.name);
+      }
+    },
+    FunctionAbstract(node: Node) {
+      console.log({ node });
+    },
+  });
+
+  return { variableDeclarations, functionDeclarations };
+};
+
+export function getGlobals(code: string) {
+  return detect(code);
+}
