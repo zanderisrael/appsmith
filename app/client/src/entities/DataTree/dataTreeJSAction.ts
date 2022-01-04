@@ -6,7 +6,7 @@ import {
 import { JSCollectionData } from "reducers/entityReducers/jsActionsReducer";
 import { EvaluationSubstitutionType } from "entities/DataTree/dataTreeFactory";
 import { DependencyMap } from "utils/DynamicBindingUtils";
-import { getGlobals } from "workers/ast";
+import { getGlobals, getVariablesAndFunctionsFromJSFile } from "workers/ast";
 
 export const generateDataTreeJSAction = (
   js: JSCollectionData,
@@ -23,6 +23,16 @@ export const generateDataTreeJSAction = (
   bindingPaths["body"] = EvaluationSubstitutionType.SMART_SUBSTITUTE;
 
   const globals = getGlobals(js.config.body);
+
+  const {
+    functionDeclarations,
+    variableDeclarations,
+  } = getVariablesAndFunctionsFromJSFile(js.config.body);
+
+  const topLevelDeps = [
+    ...Array.from(functionDeclarations),
+    ...Array.from(variableDeclarations),
+  ];
 
   const preEvalDependencies = globals.reduce((acc: any, globalNode: any) => {
     globalNode.nodes.forEach((currentNode: any) => {
@@ -48,11 +58,10 @@ export const generateDataTreeJSAction = (
         if (hasFunction) break;
       }
       if (hasFunction) {
-        acc[topLevelVariable] = acc[topLevelVariable] || [];
-        if (
-          !acc[topLevelVariable].find((dep: string) => dep === globalNode.name)
-        )
-          acc[topLevelVariable].push(globalNode.name);
+        const fullPath = `${js.config.name}.${topLevelVariable}`;
+        acc[fullPath] = acc[fullPath] || [];
+        if (!acc[fullPath].find((dep: string) => dep === globalNode.name))
+          acc[fullPath].push(globalNode.name);
       } else {
         acc[js.config.name] = acc[js.config.name] || [];
         if (!acc[js.config.name].find((dep: string) => dep === globalNode.name))
@@ -69,9 +78,14 @@ export const generateDataTreeJSAction = (
   //     listVariables.push(variable.name);
   //   }
   // }
-  const dependencyMap: DependencyMap = preEvalDependencies;
-  dependencyMap["body"] = dependencyMap[js.config.name];
-  delete dependencyMap[js.config.name];
+  const dependencyMap: DependencyMap = {};
+  dependencyMap["body"] = topLevelDeps;
+
+  topLevelDeps.forEach((dep: string) => {
+    bindingPaths[dep] = EvaluationSubstitutionType.SMART_SUBSTITUTE;
+    dynamicBindingPathList.push({ key: dep });
+  });
+
   // const actions = js.config.actions;
   // if (actions) {
   //   for (let i = 0; i < actions.length; i++) {
@@ -96,5 +110,6 @@ export const generateDataTreeJSAction = (
     dynamicBindingPathList: dynamicBindingPathList,
     variables: listVariables,
     dependencyMap: dependencyMap,
+    globalRefs: preEvalDependencies,
   };
 };

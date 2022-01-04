@@ -74,12 +74,12 @@ interface Function extends Node {
 }
 
 // doc: https://github.com/estree/estree/blob/master/es5.md#functiondeclaration
-interface FunctionDeclarationNode extends Node, Function {
+interface FunctionDeclarationNode extends Function {
   type: NodeTypes.FunctionDeclaration;
 }
 
 // doc: https://github.com/estree/estree/blob/master/es5.md#functionexpression
-interface FunctionExpressionNode extends Node, Function {
+interface FunctionExpressionNode extends Function {
   type: NodeTypes.FunctionExpression;
 }
 
@@ -323,7 +323,7 @@ export const getVariablesAndFunctionsFromJSFile = (code: string) => {
     ast = getAST(sanitizedScript);
   } catch (e) {
     if (e instanceof SyntaxError) {
-      return [];
+      return { variableDeclarations, functionDeclarations };
     }
     throw e;
   }
@@ -336,8 +336,8 @@ export const getVariablesAndFunctionsFromJSFile = (code: string) => {
         variableDeclarations.add(node.id.name);
       }
     },
-    FunctionAbstract(node: Node) {
-      console.log({ node });
+    FunctionDeclaration(node: Node) {
+      if (isFunctionDeclaration(node)) functionDeclarations.add(node.id!.name);
     },
   });
 

@@ -447,26 +447,30 @@ export default class DataTreeEvaluator {
           entity,
           entityName,
         );
+        Object.keys(entityListedDependencies).forEach((key) => {
+          entityListedDependencies[key] = _.flatten(
+            entityListedDependencies[key].map((path) => {
+              try {
+                return extractReferencesFromBinding(
+                  path,
+                  this.allKeys,
+                  isJSAction(entity),
+                );
+              } catch (e) {
+                this.errors.push({
+                  type: EvalErrorTypes.EXTRACT_DEPENDENCY_ERROR,
+                  message: e.message,
+                  context: {
+                    script: path,
+                  },
+                });
+                return [];
+              }
+            }),
+          );
+        });
         dependencyMap = { ...dependencyMap, ...entityListedDependencies };
       }
-    });
-    Object.keys(dependencyMap).forEach((key) => {
-      dependencyMap[key] = _.flatten(
-        dependencyMap[key].map((path) => {
-          try {
-            return extractReferencesFromBinding(path, this.allKeys);
-          } catch (e) {
-            this.errors.push({
-              type: EvalErrorTypes.EXTRACT_DEPENDENCY_ERROR,
-              message: e.message,
-              context: {
-                script: path,
-              },
-            });
-            return [];
-          }
-        }),
-      );
     });
     dependencyMap = makeParentsDependOnChildren(dependencyMap);
     return dependencyMap;
@@ -522,14 +526,22 @@ export default class DataTreeEvaluator {
       );
     }
     if (isJSAction(entity)) {
-      if (entity.bindingPaths) {
-        Object.keys(entity.bindingPaths).forEach((propertyPath) => {
-          // dependencies[`${entityName}.${path}`] = [];
-          const existingDeps =
-            dependencies[`${entityName}.${propertyPath}`] || [];
-          const jsSnippets = [_.get(entity, propertyPath)];
-          dependencies[`${entityName}.${propertyPath}`] = existingDeps.concat(
-            jsSnippets.filter((jsSnippet) => !!jsSnippet),
+      // if (entity.bindingPaths) {
+      //   Object.keys(entity.bindingPaths).forEach((propertyPath) => {
+      //     // dependencies[`${entityName}.${path}`] = [];
+      //     const existingDeps =
+      //       dependencies[`${entityName}.${propertyPath}`] || [];
+      //     const jsSnippets = [_.get(entity, propertyPath)];
+      //     dependencies[`${entityName}.${propertyPath}`] = existingDeps.concat(
+      //       jsSnippets.filter((jsSnippet) => !!jsSnippet),
+      //     );
+      //   });
+      // }
+      if (entity.globalRefs) {
+        Object.keys(entity.globalRefs).forEach((propertyPath) => {
+          const existingDeps = dependencies[propertyPath] || [];
+          dependencies[propertyPath] = existingDeps.concat(
+            entity.globalRefs[propertyPath],
           );
         });
       }
@@ -1587,13 +1599,14 @@ export default class DataTreeEvaluator {
 export const extractReferencesFromBinding = (
   script: string,
   allPaths: Record<string, true>,
+  skipAllPathsCheck = true,
 ): string[] => {
   const references: Set<string> = new Set<string>();
   const identifiers = extractIdentifiersFromCode(script);
 
   identifiers.forEach((identifier: string) => {
     // If the identifier exists directly, add it and return
-    if (allPaths.hasOwnProperty(identifier)) {
+    if (allPaths.hasOwnProperty(identifier) || skipAllPathsCheck) {
       references.add(identifier);
       return;
     }
