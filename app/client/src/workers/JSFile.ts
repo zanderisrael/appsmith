@@ -1,3 +1,5 @@
+import { Obj } from "tern";
+
 const { getGlobals } = require("./ast");
 
 if (process.env.NODE_ENV != "production") {
@@ -11,6 +13,7 @@ if (process.env.NODE_ENV != "production") {
  * */
 
 function JSFileCore(fnBody: string) {
+  // babel-transpiler
   try {
     eval(fnBody);
   } catch (e) {
@@ -23,7 +26,9 @@ function JSFileCore(fnBody: string) {
     __setValue__: function(exp: string): any {
       return eval(exp);
     },
-    __globals__: getGlobals(fnBody),
+    __typeof__: function(prop: string) {
+      return typeof eval(prop);
+    },
   };
 }
 
