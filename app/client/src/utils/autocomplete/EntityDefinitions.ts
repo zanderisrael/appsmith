@@ -61,6 +61,7 @@ export const entityDefinitions: Record<string, unknown> = {
       run:
         "fn(onSuccess: fn() -> void, onError: fn() -> void) -> +Promise[:t=[!0.<i>.:t]]",
       clear: "fn() -> +Promise[:t=[!0.<i>.:t]]",
+      authorize: "fn() -> +Promise[:t=[!0.<i>.:t]]",
     };
   },
   AUDIO_WIDGET: {

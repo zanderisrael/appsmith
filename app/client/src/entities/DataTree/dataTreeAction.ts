@@ -38,6 +38,7 @@ export const generateDataTreeAction = (
       getDataTreeActionConfigPath,
     );
   });
+
   return {
     run: {},
     clear: {},
@@ -59,5 +60,8 @@ export const generateDataTreeAction = (
     dependencyMap,
     logBlackList: {},
     datasourceUrl,
+    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+    // @ts-ignore
+    authorize: {},
   };
 };

@@ -64,6 +64,7 @@ export interface DataTreeAction
   dependencyMap: DependencyMap;
   logBlackList: Record<string, true>;
   datasourceUrl: string;
+  authorize: ActionDispatcher;
 }
 
 export interface DataTreeJSAction {

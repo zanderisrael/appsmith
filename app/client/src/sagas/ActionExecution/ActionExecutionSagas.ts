@@ -43,6 +43,7 @@ import {
   stopWatchCurrentLocation,
   watchCurrentLocation,
 } from "sagas/ActionExecution/GetCurrentLocationSaga";
+import { authorizeAction } from "sagas/ActionSagas";
 
 export type TriggerMeta = {
   source?: TriggerSource;
@@ -124,6 +125,9 @@ export function* executeActionTriggers(
 
     case ActionTriggerType.STOP_WATCHING_CURRENT_LOCATION:
       response = yield call(stopWatchCurrentLocation, eventType, triggerMeta);
+      break;
+    case ActionTriggerType.AUTHORIZE_ACTION:
+      response = yield call(authorizeAction, trigger.payload);
       break;
     default:
       log.error("Trigger type unknown", trigger);

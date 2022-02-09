@@ -1,5 +1,9 @@
 /* eslint-disable @typescript-eslint/ban-types */
-import { DataTree, DataTreeEntity } from "entities/DataTree/dataTreeFactory";
+import {
+  DataTree,
+  DataTreeAction,
+  DataTreeEntity,
+} from "entities/DataTree/dataTreeFactory";
 import _ from "lodash";
 import { isAction, isAppsmithEntity, isTrueObject } from "./evaluationUtils";
 import {
@@ -253,6 +257,21 @@ const DATA_TREE_FUNCTIONS: Record<
         return {
           type: ActionTriggerType.STOP_WATCHING_CURRENT_LOCATION,
           payload: {},
+          executionType: ExecutionType.PROMISE,
+        };
+      },
+  },
+  authorize: {
+    qualifier: (entity) => isAction(entity),
+    func: (entity: DataTreeEntity) =>
+      function(params = {}) {
+        const actionId: string = (entity as DataTreeAction).actionId;
+        return {
+          type: ActionTriggerType.AUTHORIZE_ACTION,
+          payload: {
+            actionId,
+            ...params,
+          },
           executionType: ExecutionType.PROMISE,
         };
       },

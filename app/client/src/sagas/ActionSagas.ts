@@ -65,6 +65,7 @@ import {
   getSettingConfig,
   getDatasources,
   getActions,
+  getDatasourcesByPluginId,
 } from "selectors/entitiesSelector";
 import history from "utils/history";
 import {
@@ -942,6 +943,32 @@ function* updateEntitySavingStatus() {
   yield put({
     type: ReduxActionTypes.ENTITY_UPDATE_SUCCESS,
   });
+}
+
+export function* authorizeAction(payload: any) {
+  const action: Action | undefined = yield select(getAction, payload.actionId);
+  if (!action) {
+    log.error("No such action");
+    return;
+  }
+
+  const { pageId, pluginType } = action;
+  const dataSources: Array<Datasource> = yield select(
+    getDatasourcesByPluginId,
+    action.id,
+  );
+  try {
+    yield put({
+      type: ReduxActionTypes.REDIRECT_AUTHORIZATION_CODE,
+      payload: {
+        datasourceId: dataSources[0]?.id,
+        pageId,
+        pluginType,
+      },
+    });
+  } catch (e) {
+    log.error(e);
+  }
 }
 
 export function* watchActionSagas() {
