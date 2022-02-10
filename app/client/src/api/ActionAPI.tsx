@@ -127,7 +127,10 @@ class ActionAPI extends API {
   static fetchActions(
     applicationId: string,
   ): AxiosPromise<GenericApiResponse<Action[]>> {
-    return API.get(ActionAPI.url, { applicationId });
+    return API.get(ActionAPI.url, { applicationId }).then((response: any) => {
+      // response.data[0].actionConfiguration.formData.command = [];
+      return response;
+    });
   }
 
   static fetchActionsForViewMode(

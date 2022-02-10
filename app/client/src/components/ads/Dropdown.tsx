@@ -63,7 +63,7 @@ type RenderOption = ({
   optionWidth,
 }: RenderDropdownOptionType) => ReactElement<any, any>;
 
-type DropdownOptionType = string | DropdownOption;
+export type DropdownOptionType = string | DropdownOption;
 
 export type DropdownProps = CommonComponentProps &
   DropdownSearchProps & {
@@ -556,9 +556,11 @@ function DefaultDropDownValueNode({
       : "Please select a option.";
 
   function Label() {
-    if (isMultiSelect && Array.isArray(selected) && selected.length) {
+    /* eslint-disable */
+    if (isMultiSelect) {
       return (
         <div style={{ display: "flex", width: "100%", flexWrap: "wrap" }}>
+          {/* @ts-ignore */}
           {selected?.map((s: DropdownOptionType) => {
             return (
               <div
@@ -587,54 +589,51 @@ function DefaultDropDownValueNode({
           })}
         </div>
       );
-    } else
-      return hasError ? (
-        <ErrorLabel>{LabelText}</ErrorLabel>
-      ) : (
-        <span style={{ width: "100%" }}>
-          <Text type={TextType.P1}>{LabelText}</Text>
-        </span>
-      );
+    }
+    if (hasError) return <ErrorLabel>{LabelText}</ErrorLabel>;
+
+    return (
+      <div style={{ width: "100%" }}>
+        <Text type={TextType.P1}>{LabelText}</Text>
+      </div>
+    );
   }
 
   return (
     <SelectedDropDownHolder>
-      {renderNode ? (
-        renderNode({
-          isSelectedNode: true,
-          option: selected,
-          hasError,
-          optionWidth,
-        })
-      ) : isMultiSelect && Array.isArray(selected) && selected.length ? (
-        <Label />
-      ) : (
-        !Array.isArray(selected) &&
-        typeof selected !== "string" && (
-          <>
-            {selected.icon ? (
-              <SelectedIcon
-                fillColor={hasError ? Colors.POMEGRANATE2 : selected?.iconColor}
-                hoverFillColor={
-                  hasError ? Colors.POMEGRANATE2 : selected?.iconColor
-                }
-                name={selected.icon}
-                size={selected.iconSize || IconSize.XL}
-              />
-            ) : null}
-            <Label />
-            {selected?.subText && !hideSubText ? (
-              <StyledSubText
-                className="sub-text"
-                showDropIcon={showDropIcon}
-                type={TextType.P1}
-              >
-                {selected.subText}
-              </StyledSubText>
-            ) : null}
-          </>
-        )
+      {renderNode
+        ? renderNode({
+            isSelectedNode: true,
+            option: selected,
+            hasError,
+            optionWidth,
+          })
+        : null}
+      {!Array.isArray(selected) && (
+        <>
+          {typeof selected !== "string" && selected.icon ? (
+            <SelectedIcon
+              fillColor={hasError ? Colors.POMEGRANATE2 : selected?.iconColor}
+              hoverFillColor={
+                hasError ? Colors.POMEGRANATE2 : selected?.iconColor
+              }
+              name={selected.icon}
+              size={selected.iconSize || IconSize.XL}
+            />
+          ) : null}
+          <Label />
+          {typeof selected !== "string" && selected?.subText && !hideSubText ? (
+            <StyledSubText
+              className="sub-text"
+              showDropIcon={showDropIcon}
+              type={TextType.P1}
+            >
+              {selected.subText}
+            </StyledSubText>
+          ) : null}
+        </>
       )}
+      {isMultiSelect ? <Label /> : null}
     </SelectedDropDownHolder>
   );
 }
@@ -706,38 +705,42 @@ export function RenderDropdownOptions(props: DropdownOptionsProps) {
               optionWidth,
             });
           }
+          if (typeof option !== "string" && option.isSectionHeader) {
+            return (
+              <SegmentHeader
+                style={{ paddingRight: theme.spaces[5] }}
+                title={getOptionLabel(option)}
+              />
+            );
+          }
           let isSelected = false;
-          if (
-            props.isMultiSelect &&
-            Array.isArray(props.selected) &&
-            props.selected.length
-          ) {
-            //multi select and there is a selected value
-            if (typeof props.selected === "string") {
-              /* eslint-disable */
-              //@ts-ignore
-              isSelected = !!props.selected.find(
+          if (typeof props.selected !== "string") {
+            if (props.isMultiSelect) {
+              const selectedOption = (props.selected as DropdownOptionType[]).find(
                 (selectedOption: DropdownOptionType) => {
-                  selectedOption === option;
+                  //@ts-ignore
+                  option.value === selectedOption.value;
                 },
               );
-            } else {
-              isSelected = !!props.selected.find(
-                (selectedOption) =>
-                  (selectedOption as DropdownOption).value ===
-                  (option as DropdownOption).value,
-              );
-            }
-          } else {
-            if (typeof props.selected === "string") {
-              isSelected = props.selected === option;
+              isSelected = !!selectedOption;
             } else {
               isSelected =
-                (props.selected as DropdownOption).value ===
-                (option as DropdownOption).value;
+                getOptionValue(props.selected as DropdownOptionType) ===
+                getOptionValue(option);
+            }
+          } else if (typeof option === "string") {
+            if (props.isMultiSelect) {
+              // @ts-ignore
+              isSelected = !!(props.selected as DropdownOptionType[]).find(
+                (selectedoption: DropdownOptionType) =>
+                  (selectedoption as DropdownOptionType) ===
+                  (option as DropdownOptionType),
+              );
+            } else {
+              isSelected = option === props.selected;
             }
           }
-          return typeof option !== "string" && !option.isSectionHeader ? (
+          return (
             <OptionWrapper
               aria-selected={isSelected}
               className="t--dropdown-option"
@@ -778,9 +781,9 @@ export function RenderDropdownOptions(props: DropdownOptionsProps) {
                     type={TextType.P1}
                   />
                 ) : (
-                  <Text type={TextType.P1}>{option.label}</Text>
+                  <Text type={TextType.P1}>{getOptionLabel(option)}</Text>
                 )
-              ) : option.label && option.value ? (
+              ) : typeof option !== "string" && option.label && option.value ? (
                 <LabelWrapper className="label-container">
                   <Text type={TextType.H5}>{getOptionValue(option)}</Text>
                   <Text type={TextType.P1}>{getOptionLabel(option)}</Text>
@@ -791,7 +794,7 @@ export function RenderDropdownOptions(props: DropdownOptionsProps) {
                   type={TextType.P1}
                 />
               ) : (
-                <Text type={TextType.P1}>{getOptionLabel(option)}</Text>
+                <Text type={TextType.P1}>{getOptionValue(option)}</Text>
               )}
               {typeof option !== "string" && option.subText ? (
                 <StyledSubText type={TextType.P3}>
@@ -799,11 +802,6 @@ export function RenderDropdownOptions(props: DropdownOptionsProps) {
                 </StyledSubText>
               ) : null}
             </OptionWrapper>
-          ) : (
-            <SegmentHeader
-              style={{ paddingRight: theme.spaces[5] }}
-              title={getOptionLabel(option)}
-            />
           );
         })}
       </DropdownOptionsWrapper>
@@ -843,10 +841,12 @@ export default function Dropdown(props: DropdownProps) {
   const optionClickHandler = useCallback(
     (option: DropdownOptionType) => {
       if (props.isMultiSelect) {
-        // Multi select -> typeof selected is array of objects
+        // multi select
         if (isArray(selected) && selected.length < 1) {
+          //No item is selected
           setSelected([option]);
         } else {
+          // atleast one item is selected
           const newOptions: DropdownOptionType[] = [
             ...(selected as DropdownOptionType[]),
             option,
@@ -854,7 +854,6 @@ export default function Dropdown(props: DropdownProps) {
           setSelected(newOptions);
         }
       } else {
-        // Single select -> typeof selected is object
         setSelected(option);
       }
       setIsOpen(false);

@@ -1,7 +1,7 @@
 import React from "react";
 import BaseControl, { ControlProps } from "./BaseControl";
 import styled from "styled-components";
-import Dropdown, { DropdownOption } from "components/ads/Dropdown";
+import Dropdown, { DropdownOptionType } from "components/ads/Dropdown";
 import { ControlType } from "constants/PropertyControlConstants";
 import _ from "lodash";
 import {
@@ -42,8 +42,9 @@ class DropDownControl extends BaseControl<DropDownControlProps> {
       <DropdownSelect data-cy={this.props.configProperty} style={{ width }}>
         <Field
           component={renderDropdown}
-          name={this.props.configProperty}
-          props={{ ...this.props, width, isLoading, options }} // Passing options and isLoading in props allows the component to get the updated values
+          name={this.props.configProperty} // Passing options and isLoading in props allows the component to get the updated values
+          props={{ ...this.props, width, isLoading, options }}
+          type={this.props?.isMultiSelect ? "select-multiple" : undefined}
         />
       </DropdownSelect>
     );
@@ -62,18 +63,35 @@ function renderDropdown(props: {
   width: string;
   formName: string;
   isLoading?: boolean;
-  options: DropdownOption[];
+  options: DropdownOptionType[];
   disabled?: boolean;
 }): JSX.Element {
-  let selectedValue = props.input?.value;
+  let selectedValue = props.isMultiSelect ? [] : props.input?.value;
+
   if (_.isUndefined(props.input?.value)) {
     selectedValue = props?.props?.initialValue;
   }
 
-  const selectedOption =
-    props.options.find(
-      (option: DropdownOption) => option.value === selectedValue,
-    ) || {};
+  let selectedOption = selectedValue;
+
+  if (props.isMultiSelect) {
+    if (typeof props.options[0] === "string") {
+    } else {
+    }
+  } else {
+    if (typeof props.options[0] === "string") {
+      selectedOption = props.options.find(
+        (option: DropdownOptionType) => option === selectedValue,
+      );
+    } else {
+      selectedOption = props.options.find(
+        /* eslint-disable */
+        //@ts-ignore
+        (option: DropdownOptionType) => option.value === selectedValue,
+      );
+    }
+  }
+
   return (
     <Dropdown
       boundary="window"
@@ -96,7 +114,7 @@ function renderDropdown(props: {
 }
 
 export interface DropDownControlProps extends ControlProps {
-  options: DropdownOption[];
+  options: DropdownOptionType[];
   placeholderText: string;
   propertyValue: string;
   subtitle?: string;

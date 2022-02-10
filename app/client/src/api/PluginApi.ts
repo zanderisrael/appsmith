@@ -43,6 +43,7 @@ export interface PluginFormPayload {
   dependencies: DependencyMap;
 }
 
+/* eslint-disable */
 class PluginsApi extends Api {
   static url = "v1/plugins";
   static fetchPlugins(
@@ -55,7 +56,7 @@ class PluginsApi extends Api {
     id: string,
   ): AxiosPromise<GenericApiResponse<PluginFormPayload>> {
     return Api.get(PluginsApi.url + `/${id}/form`).then((response: any) => {
-      addOptions(response.data?.form);
+      addOptions(response.data.editor);
       return response;
     });
   }
@@ -71,21 +72,19 @@ class PluginsApi extends Api {
 export default PluginsApi;
 
 function addOptions(formConfig: any) {
-  /* eslint-disable */
-  // const allPluginIds = Object.keys(formConfig);
-  // for (let i = 0; i < allPluginIds.length; i++) {
-  //   if (formConfig[allPluginIds[i]].options) {
-  //     formConfig[allPluginIds[i]]["isMultiSelect"] = false;
-  //     const newOptions = formConfig[allPluginIds[i]].options?.map(
-  //       (option: any) => {
-  //         return option.value;
-  //       },
-  //     );
-  //     formConfig[allPluginIds[i]].options = newOptions;
-  //   }
-  //   if (formConfig[allPluginIds[i]].children) {
-  //     addOptions(formConfig[allPluginIds[i]].children);
-  //   }
-  // }
-  // console.log("rrai", formConfig);
+  if (!formConfig) return;
+
+  const allPluginIds = Object.keys(formConfig);
+  for (let i = 0; i < allPluginIds.length; i++) {
+    if (formConfig[allPluginIds[i]].options) {
+      formConfig[allPluginIds[i]]["isMultiSelect"] = true;
+      const newOptions = formConfig[allPluginIds[i]].options?.map(
+        (option: any) => option.value,
+      );
+      formConfig[allPluginIds[i]].options = newOptions;
+    }
+    if (formConfig[allPluginIds[i]].children) {
+      addOptions(formConfig[allPluginIds[i]].children);
+    }
+  }
 }
