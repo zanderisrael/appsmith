@@ -1,8 +1,8 @@
 import React, { ReactElement } from "react";
 import styled from "styled-components";
-import Icon, { IconSize } from "./Icon";
-import { Colors } from "../../constants/Colors";
-import { CloseButton } from "../designSystems/appsmith/CloseButton";
+import Icon, { IconSize } from "components/ads/Icon";
+import { Colors } from "constants/Colors";
+import { CloseButton } from "components/designSystems/appsmith/CloseButton";
 import { createMessage, LEARN_MORE } from "@appsmith/constants/messages";
 
 export enum NotificationVariant {
