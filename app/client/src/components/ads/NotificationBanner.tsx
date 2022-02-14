@@ -3,7 +3,7 @@ import styled from "styled-components";
 import Icon, { IconSize } from "./Icon";
 import { Colors } from "../../constants/Colors";
 import { CloseButton } from "../designSystems/appsmith/CloseButton";
-import { createMessage, LEARN_MORE } from "../../constants/messages";
+import { createMessage, LEARN_MORE } from "@appsmith/constants/messages";
 
 export enum NotificationVariant {
   error,
