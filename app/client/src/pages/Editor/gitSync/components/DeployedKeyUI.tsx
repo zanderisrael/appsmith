@@ -15,14 +15,14 @@ import styled from "styled-components";
 import Text, { TextType } from "components/ads/Text";
 import TooltipComponent from "components/ads/Tooltip";
 import Key2LineIcon from "remixicon-react/Key2LineIcon";
-import { Space } from "./StyledComponents";
+import { Space } from "pages/Editor/gitSync/components/StyledComponents";
 import AnalyticsUtil from "utils/AnalyticsUtil";
 import Icon, { IconSize } from "components/ads/Icon";
 import Menu from "components/ads/Menu";
 import { Position } from "@blueprintjs/core";
 import MenuItem from "components/ads/MenuItem";
 import Button, { Category, Size } from "components/ads/Button";
-import { useSSHKeyPair } from "../hooks";
+import { useSSHKeyPair } from "pages/Editor/gitSync/hooks";
 import {
   NotificationBanner,
   NotificationVariant,
