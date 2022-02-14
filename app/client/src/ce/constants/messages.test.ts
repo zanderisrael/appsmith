@@ -229,7 +229,8 @@ describe("git-sync messages", () => {
   functions.forEach((fn: () => string) => {
     it(`${fn.name} returns expected value`, () => {
       const actual = createMessage(fn);
-      const expected = expectedMessages.find((em) => em.key === fn.name)?.value;
+      const found = expectedMessages.find((em) => em.key === fn.name);
+      const expected = found && found.value;
       expect(actual).toEqual(expected);
     });
   });

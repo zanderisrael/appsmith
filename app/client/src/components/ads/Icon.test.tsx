@@ -33,13 +33,16 @@ describe("Enterprise icon", () => {
             {actualIcon}
           </div>,
         );
-        const output = screen.queryByTestId("container")?.children;
-        const actual = output && output[0];
-        const expected = output && output[1];
-        const actualSvg = actual?.children[0];
-        const actualPath = actualSvg?.children[0];
+        const output = screen.queryByTestId("container");
+        const outputChildren = output && output.children;
+        const actual = outputChildren && outputChildren[0];
+        const expected = outputChildren && outputChildren[1];
+        const actualSvg = actual && actual.children && actual.children[0];
+        const actualPath =
+          actualSvg && actualSvg.children && actualSvg.children[0];
         const expectedSvg = expected;
-        const expectedPath = expected?.children[0];
+        const expectedPath =
+          expected && expected.children && expected.children[0];
         expect(actualSvg).toEqual(expectedSvg);
         expect(actualPath).toEqual(expectedPath);
       });

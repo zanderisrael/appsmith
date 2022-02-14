@@ -17,6 +17,7 @@ export const IconWrapper = styled.div<IconProps>`
   &:focus {
     outline: none;
   }
+
   display: inline-flex;
   width: ${(props) => props.width}px;
   height: ${(props) => props.height}px;
@@ -42,7 +43,7 @@ export const IconWrapper = styled.div<IconProps>`
       fill: ${props.background || props.theme.colors.paneBG};
     }
     rect {
-      fill: ${props.background || props.theme.colors.propertyPane?.jsIconBg};
+      fill: ${props.background || props.theme.colors.propertyPane.jsIconBg};
     }`
         : ""}
   }
