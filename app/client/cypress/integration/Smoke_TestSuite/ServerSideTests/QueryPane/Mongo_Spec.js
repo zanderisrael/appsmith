@@ -1,6 +1,7 @@
 const queryLocators = require("../../../../locators/QueryEditor.json");
 const generatePage = require("../../../../locators/GeneratePage.json");
 const datasource = require("../../../../locators/DatasourcesEditor.json");
+const explorer = require("../../../../locators/explorerlocators.json");
 import homePage from "../../../../locators/HomePage.json";
 
 let datasourceName;
@@ -195,6 +196,7 @@ describe("Create a query with a mongo datasource, run, save and then delete the 
     cy.NavigateToActiveTab();
     cy.contains(".t--datasource-name", datasourceName).click();
     cy.get(".t--delete-datasource").click();
+    cy.get("[data-cy=t--confirm-modal-btn]").click();
     cy.wait("@deleteDatasource").should(
       "have.nested.property",
       "response.body.responseMeta.status",
@@ -207,6 +209,10 @@ describe("Create a query with a mongo datasource, run, save and then delete the 
     let id;
     cy.NavigateToActiveDSQueryPane(datasourceName);
     cy.validateNSelectDropdown("Commands", "Find Document(s)");
+    cy.get(`.t--entity.datasource:contains(${datasourceName})`)
+      .find(explorer.collapse)
+      .first()
+      .click();
     cy.xpath(queryLocators.listingAndReviewContext).click({ force: true });
     cy.xpath("//div[text()='Find']")
       .click()
@@ -283,6 +289,7 @@ describe("Create a query with a mongo datasource, run, save and then delete the 
     cy.NavigateToActiveTab();
     cy.contains(".t--datasource-name", datasourceName).click();
     cy.get(".t--delete-datasource").click();
+    cy.get("[data-cy=t--confirm-modal-btn]").click();
     // cy.wait("@deleteDatasource").should(
     //   "have.nested.property",
     //   "response.body.responseMeta.status",
@@ -350,6 +357,10 @@ describe("Create a query with a mongo datasource, run, save and then delete the 
 
     cy.get("@dSName").then((dbName) => {
       cy.actionContextMenuByEntityName(dbName, "Refresh");
+      cy.get(`.t--entity.datasource:contains(${dbName})`)
+        .find(explorer.collapse)
+        .first()
+        .click();
     });
     cy.xpath("//div[text()='NonAsciiTest']").should("exist");
 

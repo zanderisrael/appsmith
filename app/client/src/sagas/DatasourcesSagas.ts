@@ -31,7 +31,6 @@ import {
 import {
   changeDatasource,
   createDatasourceFromForm,
-  expandDatasourceEntity,
   fetchDatasourceStructure,
   setDatsourceEditorMode,
   updateDatasourceSuccess,
@@ -74,7 +73,7 @@ import {
   OAUTH_AUTHORIZATION_APPSMITH_ERROR,
   OAUTH_AUTHORIZATION_FAILED,
   OAUTH_AUTHORIZATION_SUCCESSFUL,
-} from "constants/messages";
+} from "@appsmith/constants/messages";
 import AppsmithConsole from "utils/AppsmithConsole";
 import { ENTITY_TYPE } from "entities/AppsmithConsole";
 import localStorage from "utils/localStorage";
@@ -92,9 +91,11 @@ import { getGenerateTemplateFormURL } from "../constants/routes";
 import { GenerateCRUDEnabledPluginMap } from "../api/PluginApi";
 import { getIsGeneratePageInitiator } from "../utils/GenerateCrudUtil";
 import { trimQueryString } from "utils/helpers";
+import { inGuidedTour } from "selectors/onboardingSelectors";
 import { updateReplayEntity } from "actions/pageActions";
 import OAuthApi from "api/OAuthApi";
 import { AppState } from "reducers";
+import { requestModalConfirmationSaga } from "sagas/UtilSagas";
 
 function* fetchDatasourcesSaga() {
   try {
@@ -108,9 +109,6 @@ function* fetchDatasourcesSaga() {
         type: ReduxActionTypes.FETCH_DATASOURCES_SUCCESS,
         payload: response.data,
       });
-      if (response.data.length) {
-        yield put(expandDatasourceEntity(response.data[0].id));
-      }
     }
   } catch (error) {
     yield put({
@@ -183,6 +181,7 @@ export function* addMockDbToDatasources(actionPayload: addMockDb) {
       const isGeneratePageInitiator = getIsGeneratePageInitiator(
         isGeneratePageMode,
       );
+      const isInGuidedTour = yield select(inGuidedTour);
       if (isGeneratePageInitiator) {
         history.push(
           getGenerateTemplateFormURL(applicationId, pageId, {
@@ -190,6 +189,7 @@ export function* addMockDbToDatasources(actionPayload: addMockDb) {
           }),
         );
       } else {
+        if (isInGuidedTour) return;
         history.push(
           INTEGRATION_EDITOR_URL(
             applicationId,
@@ -213,6 +213,15 @@ export function* deleteDatasourceSaga(
   actionPayload: ReduxActionWithCallbacks<{ id: string }, unknown, unknown>,
 ) {
   try {
+    // request confirmation from user before deleting datasource.
+    const confirmed = yield call(requestModalConfirmationSaga);
+
+    if (!confirmed) {
+      return yield put({
+        type: ReduxActionTypes.DELETE_DATASOURCE_CANCELLED,
+      });
+    }
+
     const id = actionPayload.payload.id;
     const response: GenericApiResponse<Datasource> = yield DatasourcesApi.deleteDatasource(
       id,
@@ -296,7 +305,7 @@ export function* deleteDatasourceSaga(
       text: error.message,
       source: {
         id: actionPayload.payload.id,
-        name: datasource.name,
+        name: datasource?.name ?? "Datasource name is not set",
         type: ENTITY_TYPE.DATASOURCE,
       },
     });
@@ -751,9 +760,6 @@ function* storeAsDatasourceSaga() {
     }),
   );
   _.set(datasource, "datasourceConfiguration.headers", datasourceHeaders);
-  history.push(
-    INTEGRATION_EDITOR_URL(applicationId, pageId, INTEGRATION_TABS.ACTIVE),
-  );
 
   yield put(createDatasourceFromForm(datasource));
   const createDatasourceSuccessAction = yield take(
