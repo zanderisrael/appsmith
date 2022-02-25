@@ -83,6 +83,7 @@ class Editor extends Component<Props> {
   };
 
   componentDidMount() {
+    // performance.now();
     editorInitializer().then(() => {
       this.setState({ registered: true });
     });

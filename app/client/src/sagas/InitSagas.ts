@@ -126,28 +126,28 @@ function* initializeEditorSaga(
       }),
       fetchPageList({ applicationId }, APP_MODE.EDIT),
     ];
-    const successEffects = [
+    const initSuccessEffects = [
       ReduxActionTypes.FETCH_APPLICATION_SUCCESS,
       ReduxActionTypes.FETCH_PAGE_LIST_SUCCESS,
     ];
 
-    const failureEffects = [
+    const initFailureEffects = [
       ReduxActionErrorTypes.FETCH_APPLICATION_ERROR,
       ReduxActionErrorTypes.FETCH_PAGE_LIST_ERROR,
     ];
     if (pageId) {
       initCalls.push(fetchPage(pageId, true) as any);
-      successEffects.push(ReduxActionTypes.FETCH_PAGE_SUCCESS);
-      failureEffects.push(ReduxActionErrorTypes.FETCH_PAGE_ERROR);
+      initSuccessEffects.push(ReduxActionTypes.FETCH_PAGE_SUCCESS);
+      initFailureEffects.push(ReduxActionErrorTypes.FETCH_PAGE_ERROR);
     }
 
-    const applicationAndLayoutCalls = yield failFastApiCalls(
-      initCalls,
-      successEffects,
-      failureEffects,
-    );
+    // const applicationAndLayoutCalls = yield failFastApiCalls(
+    //   initCalls,
+    //   successEffects,
+    //   failureEffects,
+    // );
 
-    if (!applicationAndLayoutCalls) return;
+    // if (!applicationAndLayoutCalls) return;
 
     const initActionsCalls = [
       fetchActions({ applicationId }, []),
@@ -162,13 +162,19 @@ function* initializeEditorSaga(
       ReduxActionErrorTypes.FETCH_JS_ACTIONS_ERROR,
       ReduxActionErrorTypes.FETCH_ACTIONS_ERROR,
     ];
-    const allActionCalls = yield failFastApiCalls(
-      initActionsCalls,
-      successActionEffects,
-      failureActionEffects,
+    // const allActionCalls = yield failFastApiCalls(
+    //   initActionsCalls,
+    //   successActionEffects,
+    //   failureActionEffects,
+    // );
+
+    const applicationAndLayoutCallsWithAllActions = yield failFastApiCalls(
+      [...initCalls, ...initActionsCalls],
+      [...initSuccessEffects, ...successActionEffects],
+      [...initFailureEffects, ...failureActionEffects],
     );
 
-    if (!allActionCalls) {
+    if (!applicationAndLayoutCallsWithAllActions) {
       return;
     } else {
       yield put({
