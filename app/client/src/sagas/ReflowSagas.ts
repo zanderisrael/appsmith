@@ -21,8 +21,8 @@ import {
 function* initReflowStates() {
   try {
     const user: User = yield select(getCurrentUser);
-    const { email } = user;
-    if (email) {
+    if (user && user.email) {
+      const { email } = user;
       const enableReflow: boolean = yield getReflowBetaFlag(email);
       const enableReflowHasBeenSet = isBoolean(enableReflow);
       yield put(

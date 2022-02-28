@@ -1,27 +1,17 @@
-import React from "react";
+import React, { lazy, Suspense } from "react";
 import PageLoadingBar from "pages/common/PageLoadingBar";
 import { retryPromise } from "utils/AppsmithUtils";
 
-class EditorLoader extends React.PureComponent<any, { Page: any }> {
-  constructor(props: any) {
-    super(props);
+const Editor = lazy(() =>
+  retryPromise(() => import(/* webpackChunkName: "editor" */ "./index")),
+);
 
-    this.state = {
-      Page: null,
-    };
-  }
-
-  componentDidMount() {
-    retryPromise(() => import(/* webpackChunkName: "editor" */ "./index")).then(
-      (module) => {
-        this.setState({ Page: module.default });
-      },
-    );
-  }
-  render() {
-    const { Page } = this.state;
-    return Page ? <Page {...this.props} /> : <PageLoadingBar />;
-  }
+function EditorLoader(props: any) {
+  return (
+    <Suspense fallback={<PageLoadingBar />}>
+      <Editor {...props} />
+    </Suspense>
+  );
 }
 
 export default EditorLoader;

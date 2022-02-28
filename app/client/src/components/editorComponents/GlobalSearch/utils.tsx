@@ -290,7 +290,7 @@ export const useDefaultDocumentationResults = (modalOpen: boolean) => {
   const [defaultDocs, setDefaultDocs] = useState<DocSearchItem[]>([]);
   const [isFetching, updateIsFetching] = useState(false);
   useEffect(() => {
-    if (!isFetching && !defaultDocs.length) {
+    if (!isFetching && !defaultDocs.length && modalOpen) {
       // Keep trying to fetch until a max retries is reached
       fetchDefaultDocs(updateIsFetching, setDefaultDocs, 0, 2);
     }
