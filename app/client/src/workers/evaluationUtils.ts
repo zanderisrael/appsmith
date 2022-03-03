@@ -282,13 +282,14 @@ export const removeFunctions = (value: any) => {
 
 export const makeParentsDependOnChildren = (
   depMap: DependencyMap,
+  allkeys: Record<string, true>,
 ): DependencyMap => {
   //return depMap;
   // Make all parents depend on child
   Object.keys(depMap).forEach((key) => {
-    depMap = makeParentsDependOnChild(depMap, key);
+    depMap = makeParentsDependOnChild(depMap, key, allkeys);
     depMap[key].forEach((path) => {
-      depMap = makeParentsDependOnChild(depMap, path);
+      depMap = makeParentsDependOnChild(depMap, path, allkeys);
     });
   });
   return depMap;
@@ -297,9 +298,13 @@ export const makeParentsDependOnChildren = (
 export const makeParentsDependOnChild = (
   depMap: DependencyMap,
   child: string,
+  allkeys: Record<string, true>,
 ): DependencyMap => {
   const result: DependencyMap = depMap;
   let curKey = child;
+  if (!allkeys[curKey]) {
+    console.warn("Hello " + curKey);
+  }
 
   let matches: Array<string> | null;
   // Note: The `=` is intentional
