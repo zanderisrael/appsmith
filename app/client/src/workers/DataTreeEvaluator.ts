@@ -81,6 +81,7 @@ import {
   ActionValidationConfigMap,
   ValidationConfig,
 } from "constants/PropertyControlConstants";
+import { parseJSObjectWithAST } from "workers/ast";
 const clone = require("rfdc/default");
 export default class DataTreeEvaluator {
   dependencyMap: DependencyMap = {};
@@ -700,6 +701,11 @@ export default class DataTreeEvaluator {
             _.set(currentTree, fullPropertyPath, evalPropertyValue);
             return currentTree;
           } else if (isJSAction(entity)) {
+            const variableList: Array<string> =
+              _.get(entity, "variables") || [];
+            if (variableList.indexOf(propertyPath) > -1) {
+              _.set(currentTree, fullPropertyPath, evalPropertyValue);
+            }
             return currentTree;
           } else {
             return _.set(currentTree, fullPropertyPath, evalPropertyValue);
@@ -1003,85 +1009,96 @@ export default class DataTreeEvaluator {
     const correctFormat = regex.test(entity.body);
     if (correctFormat) {
       const body = entity.body.replace(/export default/g, "");
-      try {
-        const { result } = evaluateSync(body, unEvalDataTree, {}, true);
-        delete this.resolvedFunctions[`${entityName}`];
-        delete this.currentJSCollectionState[`${entityName}`];
-        if (result) {
-          const actions: any = [];
-          const variables: any = [];
-          Object.keys(result).forEach((unEvalFunc) => {
-            const unEvalValue = result[unEvalFunc];
-            if (typeof unEvalValue === "function") {
-              const params = getParams(unEvalValue);
-              const functionString = unEvalValue.toString();
-              _.set(
-                this.resolvedFunctions,
-                `${entityName}.${unEvalFunc}`,
-                unEvalValue,
-              );
-              _.set(
-                this.currentJSCollectionState,
-                `${entityName}.${unEvalFunc}`,
-                functionString,
-              );
-              actions.push({
-                name: unEvalFunc,
-                body: functionString,
-                arguments: params,
-                value: unEvalValue,
-              });
-            } else {
-              variables.push({
-                name: unEvalFunc,
-                value: result[unEvalFunc],
-              });
-              _.set(
-                this.currentJSCollectionState,
-                `${entityName}.${unEvalFunc}`,
-                unEvalValue,
-              );
-            }
-          });
-
-          const modifiedActions = actions.map((action: any) => {
-            return {
-              name: action.name,
-              body: action.body,
-              arguments: action.arguments,
-              isAsync: isFunctionAsync(
-                action.value,
+      const parsedObject = parseJSObjectWithAST(body);
+      console.log("**", parsedObject);
+      delete this.resolvedFunctions[`${entityName}`];
+      delete this.currentJSCollectionState[`${entityName}`];
+      if (!!parsedObject) {
+        const actions: any = [];
+        const variables: any = [];
+        parsedObject.forEach((parsedVar: Record<string, any>) => {
+          if (
+            parsedVar.type === "ArrowFunctionExpression" ||
+            parsedVar.type === "FunctionExpression"
+          ) {
+            try {
+              const { result } = evaluateSync(
+                parsedVar.value,
                 unEvalDataTree,
-                this.resolvedFunctions,
-              ),
-            };
-          });
+                {},
+                true,
+              );
+              if (result) {
+                const unEvalValue = result;
+                const params = getParams(unEvalValue);
+                const functionString = parsedVar.value;
+                _.set(
+                  this.resolvedFunctions,
+                  `${entityName}.${parsedVar.key}`,
+                  unEvalValue,
+                );
+                _.set(
+                  this.currentJSCollectionState,
+                  `${entityName}.${parsedVar.key}`,
+                  functionString,
+                );
+                actions.push({
+                  name: parsedVar.key,
+                  body: functionString,
+                  arguments: params,
+                  value: unEvalValue,
+                });
 
-          const parsedBody = {
-            body: entity.body,
-            actions: modifiedActions,
-            variables,
-          };
-          _.set(jsUpdates, `${entityName}`, {
-            parsedBody,
-            id: entity.actionId,
-          });
-        } else {
-          _.set(jsUpdates, `${entityName}`, {
-            parsedBody: undefined,
-            id: entity.actionId,
-          });
-        }
-      } catch (e) {
-        const errors = {
-          type: EvalErrorTypes.PARSE_JS_ERROR,
-          context: {
-            entity: entity,
-            propertyPath: entity.name + ".body",
-          },
-          message: e.message,
-        };
-        this.errors.push(errors);
+                const modifiedActions = actions.map((action: any) => {
+                  return {
+                    name: action.name,
+                    body: action.body,
+                    arguments: action.arguments,
+                    isAsync: isFunctionAsync(
+                      action.value,
+                      unEvalDataTree,
+                      this.resolvedFunctions,
+                    ),
+                  };
+                });
+                const parsedBody = {
+                  body: entity.body,
+                  actions: modifiedActions,
+                  variables,
+                };
+                _.set(jsUpdates, `${entityName}`, {
+                  parsedBody,
+                  id: entity.actionId,
+                });
+              }
+            } catch (e) {
+              const errors = {
+                type: EvalErrorTypes.PARSE_JS_ERROR,
+                context: {
+                  entity: entity,
+                  propertyPath: entity.name + ".body",
+                },
+                message: e.message,
+              };
+              this.errors.push(errors);
+            }
+          } else {
+            variables.push({
+              name: parsedVar.key,
+              value: parsedVar.value,
+            });
+            _.set(
+              this.currentJSCollectionState,
+              `${entityName}.${parsedVar.key}`,
+              parsedVar.value,
+            );
+          }
+        });
+      } else {
+        _.set(jsUpdates, `${entityName}`, {
+          parsedBody: undefined,
+          id: entity.actionId,
+        });
       }
     } else {
       const errors = {
@@ -1462,7 +1479,7 @@ export default class DataTreeEvaluator {
         if (!entity) {
           continue;
         }
-        if (!isAction(entity) && !isWidget(entity)) {
+        if (!isAction(entity) && !isWidget(entity) && !isJSAction(entity)) {
           continue;
         }
         const parentPropertyPath = convertPathToString(d.path);
