@@ -26,6 +26,7 @@ import { ValidationConfig } from "constants/PropertyControlConstants";
 import { Severity } from "entities/AppsmithConsole";
 import { Variable } from "entities/JSCollection";
 import { ParsedBody, ParsedJSSubAction } from "utils/JSPaneUtils";
+import { warn as logWarn } from "loglevel";
 // Dropdown1.options[1].value -> Dropdown1.options[1]
 // Dropdown1.options[1] -> Dropdown1.options
 // Dropdown1.options -> Dropdown1
@@ -303,7 +304,10 @@ export const makeParentsDependOnChild = (
   const result: DependencyMap = depMap;
   let curKey = child;
   if (!allkeys[curKey]) {
-    console.warn("Hello " + curKey);
+    logWarn(
+      `makeParentsDependOnChild - ${curKey} is not present in dataTree.`,
+      "This might result in a cyclic dependency.",
+    );
   }
 
   let matches: Array<string> | null;
