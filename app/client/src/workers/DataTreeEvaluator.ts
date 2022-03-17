@@ -82,6 +82,7 @@ import {
   ValidationConfig,
 } from "constants/PropertyControlConstants";
 const clone = require("rfdc/default");
+import { parseJSObjectWithAST } from "workers/ast";
 export default class DataTreeEvaluator {
   dependencyMap: DependencyMap = {};
   sortedDependencies: Array<string> = [];
@@ -700,6 +701,11 @@ export default class DataTreeEvaluator {
             _.set(currentTree, fullPropertyPath, evalPropertyValue);
             return currentTree;
           } else if (isJSAction(entity)) {
+            const variableList: Array<string> =
+              _.get(entity, "variables") || [];
+            if (variableList.indexOf(propertyPath) > -1) {
+              _.set(currentTree, fullPropertyPath, evalPropertyValue);
+            }
             return currentTree;
           } else {
             return _.set(currentTree, fullPropertyPath, evalPropertyValue);
@@ -1003,47 +1009,58 @@ export default class DataTreeEvaluator {
     const correctFormat = regex.test(entity.body);
     if (correctFormat) {
       const body = entity.body.replace(/export default/g, "");
-      try {
-        const { result } = evaluateSync(body, unEvalDataTree, {}, true);
-        delete this.resolvedFunctions[`${entityName}`];
-        delete this.currentJSCollectionState[`${entityName}`];
-        if (result) {
-          const actions: any = [];
-          const variables: any = [];
-          Object.keys(result).forEach((unEvalFunc) => {
-            const unEvalValue = result[unEvalFunc];
-            if (typeof unEvalValue === "function") {
-              const params = getParams(unEvalValue);
-              const functionString = unEvalValue.toString();
-              _.set(
-                this.resolvedFunctions,
-                `${entityName}.${unEvalFunc}`,
-                unEvalValue,
+      const parsedObject = parseJSObjectWithAST(body);
+      const actions: any = [];
+      const variables: any = [];
+      delete this.resolvedFunctions[`${entityName}`];
+      delete this.currentJSCollectionState[`${entityName}`];
+      if (!!parsedObject) {
+        parsedObject.forEach((parsedElement: any) => {
+          if (
+            parsedElement.type === "ArrowFunctionExpression" ||
+            parsedElement.type === "FunctionExpression"
+          ) {
+            try {
+              const { result } = evaluateSync(
+                parsedElement.value,
+                unEvalDataTree,
+                {},
+                true,
               );
-              _.set(
-                this.currentJSCollectionState,
-                `${entityName}.${unEvalFunc}`,
-                functionString,
-              );
-              actions.push({
-                name: unEvalFunc,
-                body: functionString,
-                arguments: params,
-                value: unEvalValue,
-              });
-            } else {
-              variables.push({
-                name: unEvalFunc,
-                value: result[unEvalFunc],
-              });
-              _.set(
-                this.currentJSCollectionState,
-                `${entityName}.${unEvalFunc}`,
-                unEvalValue,
-              );
+              if (result) {
+                const params = getParams(result);
+                const functionString = result.toString();
+                _.set(
+                  this.resolvedFunctions,
+                  `${entityName}.${parsedElement.key}`,
+                  result,
+                );
+                _.set(
+                  this.currentJSCollectionState,
+                  `${entityName}.${parsedElement.key}`,
+                  functionString,
+                );
+                actions.push({
+                  name: parsedElement.key,
+                  body: functionString,
+                  arguments: params,
+                  value: result,
+                });
+              }
+            } catch (e) {
+              console.log(e);
             }
-          });
-
+          } else if (parsedElement.type !== "Literal") {
+            variables.push({
+              name: parsedElement.key,
+              value: parsedElement.value,
+            });
+            _.set(
+              this.currentJSCollectionState,
+              `${entityName}.${parsedElement.key}`,
+              parsedElement.value,
+            );
+          }
           const modifiedActions = actions.map((action: any) => {
             return {
               name: action.name,
@@ -1056,7 +1073,6 @@ export default class DataTreeEvaluator {
               ),
             };
           });
-
           const parsedBody = {
             body: entity.body,
             actions: modifiedActions,
@@ -1066,22 +1082,12 @@ export default class DataTreeEvaluator {
             parsedBody,
             id: entity.actionId,
           });
-        } else {
-          _.set(jsUpdates, `${entityName}`, {
-            parsedBody: undefined,
-            id: entity.actionId,
-          });
-        }
-      } catch (e) {
-        const errors = {
-          type: EvalErrorTypes.PARSE_JS_ERROR,
-          context: {
-            entity: entity,
-            propertyPath: entity.name + ".body",
-          },
-          message: e.message,
-        };
-        this.errors.push(errors);
+        });
+      } else {
+        _.set(jsUpdates, `${entityName}`, {
+          parsedBody: undefined,
+          id: entity.actionId,
+        });
       }
     } else {
       const errors = {
@@ -1462,7 +1468,7 @@ export default class DataTreeEvaluator {
         if (!entity) {
           continue;
         }
-        if (!isAction(entity) && !isWidget(entity)) {
+        if (!isAction(entity) && !isWidget(entity) && !isJSAction(entity)) {
           continue;
         }
         const parentPropertyPath = convertPathToString(d.path);
