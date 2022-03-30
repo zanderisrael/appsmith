@@ -9,10 +9,8 @@ import com.appsmith.server.exceptions.AppsmithException;
 import com.appsmith.server.repositories.ApplicationRepository;
 import com.appsmith.server.repositories.ConfigRepository;
 import com.appsmith.server.repositories.DatasourceRepository;
-import com.appsmith.server.services.ConfigService;
 import lombok.extern.slf4j.Slf4j;
 import net.minidev.json.JSONObject;
-import org.springframework.stereotype.Service;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
@@ -120,6 +118,23 @@ public class ConfigServiceCEImpl implements ConfigServiceCE {
                 .cast(List.class)
                 .onErrorReturn(Collections.emptyList())
                 .flatMapMany(datasourceRepository::findByIdIn);
+    }
+
+    @Override
+    public Mono<Config> updateAuthentication(String name, Map<String, Object> config) {
+
+        Config toSave = new Config();
+        toSave.setName(name);
+        toSave.setConfig(new JSONObject(config));
+
+        return save(toSave);
+
+//        return repository.findByName(name)
+//                .flatMap(dbConfig -> {
+//                    log.debug("Found config with name: {} and id: {}", name, dbConfig.getId());
+//                    dbConfig.setConfig(config.getConfig());
+//                    return repository.save(dbConfig);
+//                });
     }
 
 }

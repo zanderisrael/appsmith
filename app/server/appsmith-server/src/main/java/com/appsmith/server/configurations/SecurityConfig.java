@@ -8,6 +8,7 @@ import com.appsmith.server.constants.FieldName;
 import com.appsmith.server.constants.Url;
 import com.appsmith.server.domains.User;
 import com.appsmith.server.helpers.RedirectHelper;
+import com.appsmith.server.services.ConfigService;
 import com.appsmith.server.services.UserService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -71,6 +72,9 @@ public class SecurityConfig {
 
     @Autowired
     private RedirectHelper redirectHelper;
+
+    @Autowired
+    private ConfigService configService;
 
     /**
      * This routerFunction is required to map /public/** endpoints to the src/main/resources/public folder
@@ -143,7 +147,7 @@ public class SecurityConfig {
                 // For Github SSO Login, check transformation class: CustomOAuth2UserServiceImpl
                 // For Google SSO Login, check transformation class: CustomOAuth2UserServiceImpl
                 .and().oauth2Login()
-                .authorizationRequestResolver(new CustomServerOAuth2AuthorizationRequestResolver(reactiveClientRegistrationRepository, commonConfig, redirectHelper))
+                .authorizationRequestResolver(new CustomServerOAuth2AuthorizationRequestResolver(reactiveClientRegistrationRepository, commonConfig, redirectHelper, configService))
                 .authenticationSuccessHandler(authenticationSuccessHandler)
                 .authenticationFailureHandler(authenticationFailureHandler)
                 .authorizedClientRepository(new ClientUserRepository(userService, commonConfig))
@@ -167,6 +171,56 @@ public class SecurityConfig {
         resolver.addCookieInitializer((builder) -> builder.sameSite("Lax"));
         return resolver;
     }
+
+//    @Bean
+//    public ReactiveClientRegistrationRepository oauth2ClientRegistration() {
+//
+//        List<ClientRegistration> clientsFromDb = Flux.fromArray(AppsmithOidcAuthenticationType.values())
+//                .map(authenticationType -> authenticationType.toString().toLowerCase())
+//                .flatMap(name -> configService.getByName(name)
+//                        // In case of an error aka no configuration found, dont throw an error
+//                        .onErrorResume(throwable -> Mono.empty())
+//                )
+//                .map(config -> config.getConfig())
+//                .flatMap(config -> {
+//
+//                    if (config.get("clientAuthenticationMethod") == null || config.get("authorizationGrantType") == null) {
+//                        // Incomplete configuration found for oauth2
+//                        return Mono.empty();
+//                    }
+//
+//                    String clientAuthenticationMethod = (String) config.get("clientAuthenticationMethod");
+//                    String authorizationGrantType = (String) config.get("authorizationGrantType");
+//
+//                    String scopeFromConfig = String.valueOf(config.get("scopes"));
+//                    scopeFromConfig = scopeFromConfig.replace ("[", "").replace ("]", "");
+//
+//                    List<String> scopes = new ArrayList<String>(Arrays.asList(scopeFromConfig.split(",")));
+//                    scopes = scopes.stream().map(scope -> scope.replaceAll("\\s+","")).collect(Collectors.toList());
+//
+//                    ClientRegistration clientRegistration = ClientRegistration.withRegistrationId((String) config.get("registrationId"))
+//                            .clientId((String) config.get("clientId"))
+//                            .clientSecret((String) config.get("clientSecret"))
+//                            .clientAuthenticationMethod(new ClientAuthenticationMethod(clientAuthenticationMethod))
+//                            .authorizationGrantType(new AuthorizationGrantType(authorizationGrantType))
+//                            .redirectUri((String) config.get("redirectUri"))
+//                            .scope(scopes)
+//                            .authorizationUri((String) config.get("authorizationUri"))
+//                            .tokenUri((String) config.get("tokenUri"))
+//                            .userInfoUri((String) config.get("userInfoUri"))
+//                            .userNameAttributeName((String) config.get("userNameAttributeName"))
+//                            .jwkSetUri((String) config.get("jwkSetUri"))
+//                            .clientName((String) config.get("clientName"))
+//                            .build();
+//
+//                    return Mono.just(clientRegistration);
+//                })
+//                .collect(Collectors.toList())
+//                .subscribeOn(Schedulers.parallel())
+//                .block();
+//
+//        return new InMemoryReactiveClientRegistrationRepository(clientsFromDb);
+//    }
 
     private User createAnonymousUser() {
         User user = new User();

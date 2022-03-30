@@ -12,6 +12,8 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import reactor.core.publisher.Mono;
 
+import java.util.Map;
+
 @RequestMapping(Url.CONFIG_URL)
 public class ConfigControllerCE {
 
@@ -29,6 +31,12 @@ public class ConfigControllerCE {
     @PutMapping("/name/{name}")
     public Mono<ResponseDTO<Config>> updateByName(@PathVariable String name, @RequestBody Config config) {
         return service.updateByName(config)
+                .map(resource -> new ResponseDTO<>(HttpStatus.OK.value(), resource, null));
+    }
+
+    @PutMapping("/auth/{name}")
+    public Mono<ResponseDTO<Config>> updateAuthentication(String name, @RequestBody Map<String, Object> config) {
+        return service.updateAuthentication(name, config)
                 .map(resource -> new ResponseDTO<>(HttpStatus.OK.value(), resource, null));
     }
 }

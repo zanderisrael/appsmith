@@ -1,16 +1,19 @@
 package com.appsmith.server.authentication.handlers.ce;
 
 import com.appsmith.server.configurations.CommonConfig;
+import com.appsmith.server.constants.AppsmithOidcAuthenticationType;
 import com.appsmith.server.constants.Security;
 import com.appsmith.server.exceptions.AppsmithError;
 import com.appsmith.server.exceptions.AppsmithException;
 import com.appsmith.server.helpers.RedirectHelper;
+import com.appsmith.server.services.ConfigService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.server.reactive.ServerHttpRequest;
 import org.springframework.security.crypto.keygen.Base64StringKeyGenerator;
 import org.springframework.security.crypto.keygen.StringKeyGenerator;
 import org.springframework.security.oauth2.client.registration.ClientRegistration;
+import org.springframework.security.oauth2.client.registration.InMemoryReactiveClientRegistrationRepository;
 import org.springframework.security.oauth2.client.registration.ReactiveClientRegistrationRepository;
 import org.springframework.security.oauth2.client.web.server.ServerOAuth2AuthorizationRequestResolver;
 import org.springframework.security.oauth2.core.AuthorizationGrantType;
@@ -29,20 +32,29 @@ import org.springframework.web.server.ResponseStatusException;
 import org.springframework.web.server.ServerWebExchange;
 import org.springframework.web.util.UriComponents;
 import org.springframework.web.util.UriComponentsBuilder;
+import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Base64;
 import java.util.HashMap;
+import java.util.Iterator;
+import java.util.List;
 import java.util.Map;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 /**
  * This class is a copy of {@link org.springframework.security.oauth2.client.web.server.DefaultServerOAuth2AuthorizationRequestResolver}
  * It has been copied so as to override the creation of the `state` query parameter sent to the OAuth2 authentication server
- * The only 2 functions that have been overridden from the base class are: {@link #generateKey(ServerHttpRequest)} and
- * {@link #authorizationRequest(ServerWebExchange, ClientRegistration)}.
+ * The only 3 functions that have been overridden from the base class are:
+ * {@link #generateKey(ServerHttpRequest)},
+ * {@link #authorizationRequest(ServerWebExchange, ClientRegistration)},
+ * {@link #resolve(ServerWebExchange, String)} : ClientRegistration is first from mongo db and then from in memory client repository
  * We couldn't simply extend the base class because of the use of private variables and methods to invoke these functions.
  */
 @Slf4j
@@ -74,30 +86,43 @@ public class CustomServerOAuth2AuthorizationRequestResolverCE implements ServerO
 
     private final RedirectHelper redirectHelper;
 
+    private final ConfigService configService;
+
     /**
      * Creates a new instance
-     *  @param clientRegistrationRepository the repository to resolve the {@link ClientRegistration}
+     * @param clientRegistrationRepository the repository to resolve the {@link ClientRegistration}
      * @param commonConfig
      * @param redirectHelper
+     * @param configService
      */
     public CustomServerOAuth2AuthorizationRequestResolverCE(ReactiveClientRegistrationRepository clientRegistrationRepository,
                                                             CommonConfig commonConfig,
-                                                            RedirectHelper redirectHelper) {
+                                                            RedirectHelper redirectHelper,
+                                                            ConfigService configService) {
         this(clientRegistrationRepository, new PathPatternParserServerWebExchangeMatcher(
-                DEFAULT_AUTHORIZATION_REQUEST_PATTERN), commonConfig, redirectHelper);
+                DEFAULT_AUTHORIZATION_REQUEST_PATTERN), commonConfig, redirectHelper, configService);
     }
 
     /**
      * Creates a new instance
-     *  @param clientRegistrationRepository the repository to resolve the {@link ClientRegistration}
+     * @param clientRegistrationRepository the repository to resolve the {@link ClientRegistration}
      * @param authorizationRequestMatcher  the matcher that determines if the request is a match and extracts the
      *                                     {@link #DEFAULT_REGISTRATION_ID_URI_VARIABLE_NAME} from the path variables.
      * @param redirectHelper
+     * @param configService
      */
     public CustomServerOAuth2AuthorizationRequestResolverCE(ReactiveClientRegistrationRepository clientRegistrationRepository,
                                                             ServerWebExchangeMatcher authorizationRequestMatcher,
                                                             CommonConfig commonConfig,
-                                                            RedirectHelper redirectHelper) {
+                                                            RedirectHelper redirectHelper, ConfigService configService) {
+        this.configService = configService;
+        InMemoryReactiveClientRegistrationRepository inMemoryReactiveClientRegistrationRepository = (InMemoryReactiveClientRegistrationRepository) clientRegistrationRepository;
+        Iterator<ClientRegistration> iterator = inMemoryReactiveClientRegistrationRepository.iterator();
+
+        while (iterator.hasNext()) {
+            ClientRegistration clientRegistration = iterator.next();
+        }
+
         this.redirectHelper = redirectHelper;
         Assert.notNull(clientRegistrationRepository, "clientRegistrationRepository cannot be null");
         Assert.notNull(authorizationRequestMatcher, "authorizationRequestMatcher cannot be null");
@@ -119,7 +144,62 @@ public class CustomServerOAuth2AuthorizationRequestResolverCE implements ServerO
     @Override
     public Mono<OAuth2AuthorizationRequest> resolve(ServerWebExchange exchange,
                                                     String clientRegistrationId) {
-        return this.findByRegistrationId(clientRegistrationId)
+
+        Mono<Map<String, ClientRegistration>> clientFromDbMapMono = Flux.fromArray(AppsmithOidcAuthenticationType.values())
+                .map(authenticationType -> authenticationType.toString().toLowerCase())
+                .flatMap(name -> configService.getByName(name)
+                        // In case of an error aka no configuration found, dont throw an error
+                                    .onErrorResume(throwable -> Mono.empty())
+                )
+                .map(config -> config.getConfig())
+                .flatMap(config -> {
+
+                    if (config.get("clientAuthenticationMethod") == null || config.get("authorizationGrantType") == null) {
+                        // Incomplete configuration found for oauth2
+                        return Mono.empty();
+                    }
+
+                    String clientAuthenticationMethod = (String) config.get("clientAuthenticationMethod");
+                    String authorizationGrantType = (String) config.get("authorizationGrantType");
+
+                    String scopeFromConfig = String.valueOf(config.get("scopes"));
+                    scopeFromConfig = scopeFromConfig.replace ("[", "").replace ("]", "");
+
+                    List<String> scopes = new ArrayList<String>(Arrays.asList(scopeFromConfig.split(",")));
+                    scopes = scopes.stream().map(scope -> scope.replaceAll("\\s+","")).collect(Collectors.toList());
+
+                    ClientRegistration clientRegistration = ClientRegistration.withRegistrationId((String) config.get("registrationId"))
+                            .clientId((String) config.get("clientId"))
+                            .clientSecret((String) config.get("clientSecret"))
+                            .clientAuthenticationMethod(new ClientAuthenticationMethod(clientAuthenticationMethod))
+                            .authorizationGrantType(new AuthorizationGrantType(authorizationGrantType))
+                            .redirectUri((String) config.get("redirectUri"))
+                            .scope(scopes)
+                            .authorizationUri((String) config.get("authorizationUri"))
+                            .tokenUri((String) config.get("tokenUri"))
+                            .userInfoUri((String) config.get("userInfoUri"))
+                            .userNameAttributeName((String) config.get("userNameAttributeName"))
+                            .jwkSetUri((String) config.get("jwkSetUri"))
+                            .clientName((String) config.get("clientName"))
+                            .build();
+
+                    return Mono.just(clientRegistration);
+                })
+                .collectMap(ClientRegistration::getRegistrationId, Function.identity());
+
+        Mono<ClientRegistration> clientRegistrationFromDbMono = clientFromDbMapMono
+                .flatMap(clientFromDbMap -> {
+                    ClientRegistration clientRegistration = clientFromDbMap.get(clientRegistrationId);
+
+                        if (clientRegistration == null) {
+                        return Mono.empty();
+                    }
+
+                    return Mono.just(clientRegistration);
+                });
+
+        return clientRegistrationFromDbMono
+                .switchIfEmpty(this.findByRegistrationId(clientRegistrationId))
                 .flatMap(clientRegistration -> {
                     if (MISSING_VALUE_SENTINEL.equals(clientRegistration.getClientId())) {
                         return Mono.error(new AppsmithException(AppsmithError.OAUTH_NOT_AVAILABLE, clientRegistrationId));

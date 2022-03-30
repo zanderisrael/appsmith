@@ -26,4 +26,5 @@ public interface ConfigServiceCE {
 
     Flux<Datasource> getTemplateDatasources();
 
+    Mono<Config> updateAuthentication(String name, Map<String, Object> config);
 }
