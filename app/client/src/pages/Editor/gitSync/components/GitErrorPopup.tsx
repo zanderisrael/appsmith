@@ -18,6 +18,7 @@ import { Colors } from "constants/Colors";
 import { get } from "lodash";
 
 import ConflictInfo from "../components/ConflictInfo";
+import { getCurrentAppGitMetaData } from "selectors/applicationSelectors";
 
 const StyledGitErrorPopup = styled.div`
   & {
@@ -75,6 +76,7 @@ function Header({ closePopup }: { closePopup: () => void }) {
 
 function GitErrorPopup() {
   const dispatch = useDispatch();
+  const gitMetaData = useSelector(getCurrentAppGitMetaData);
   const isGitErrorPopupVisible = useSelector(getIsGitErrorPopupVisible);
   const hidePopup = () => {
     dispatch(setIsGitErrorPopupVisible({ isVisible: false }));
@@ -99,7 +101,9 @@ function GitErrorPopup() {
             <Space size={2} />
             {isConflicting && (
               <ConflictInfo
-                browserSupportedRemoteUrl={""}
+                browserSupportedRemoteUrl={
+                  gitMetaData?.browserSupportedRemoteUrl || ""
+                }
                 learnMoreLink={gitConflictDocumentUrl}
               />
             )}
