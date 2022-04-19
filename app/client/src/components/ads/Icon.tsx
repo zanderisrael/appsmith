@@ -158,6 +158,7 @@ import HamburgerIcon from "remixicon-react/MenuLineIcon";
 import MagicLineIcon from "remixicon-react/MagicLineIcon";
 import UserHeartLineIcon from "remixicon-react/UserHeartLineIcon";
 import DvdLineIcon from "remixicon-react/DvdLineIcon";
+import CodeViewIcon from "remixicon-react/CodeViewIcon";
 
 export enum IconSize {
   XXS = "extraExtraSmall",
@@ -322,6 +323,7 @@ const ICON_LOOKUP = {
   cancel: <CancelIcon />,
   chat: <Chat />,
   close: <CloseIcon />,
+  code: <CodeViewIcon />,
   column: <ColumnIcon />,
   cross: <CrossIcon />,
   danger: <ErrorIcon />,
