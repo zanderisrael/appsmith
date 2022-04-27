@@ -401,7 +401,6 @@ class GlobalHotKeys extends React.Component<Props> {
             this.props.showCommitModal();
           }}
         />
-        <Hotkey combo="Shift + option + f" label="Prettify code" />
       </Hotkeys>
     );
   }
