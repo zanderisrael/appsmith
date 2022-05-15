@@ -438,6 +438,7 @@ class SingleSelectTreeWidget extends BaseWidget<
   }
 
   componentDidUpdate(prevProps: SingleSelectTreeWidgetProps): void {
+    super.componentDidUpdate(prevProps);
     if (
       this.props.defaultOptionValue !== prevProps.defaultOptionValue &&
       this.props.isDirty
