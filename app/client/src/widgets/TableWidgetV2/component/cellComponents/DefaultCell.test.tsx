@@ -1,5 +1,4 @@
 import { getCellText } from "./DefaultCell";
-import { CellLayoutProperties } from "../Constants";
 import { ColumnTypes } from "widgets/TableWidgetV2/constants";
 
 describe("DefaultRendere - ", () => {
@@ -58,8 +57,8 @@ describe("DefaultRendere - ", () => {
         expect(
           getCellText(
             testValue.value,
-            testValue.cellProperties as CellLayoutProperties,
             testValue.columnType,
+            testValue.cellProperties.displayText,
           ),
         ).toEqual(testValue.expected);
       });
