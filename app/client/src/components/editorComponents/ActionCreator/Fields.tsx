@@ -13,6 +13,7 @@ import { Skin } from "constants/DefaultTheme";
 import { DropdownOption } from "components/constants";
 import { AutocompleteDataType } from "utils/autocomplete/TernServer";
 import { NavigationTargetType } from "sagas/ActionExecution/NavigateActionSaga";
+import Switcher, { Switch, SwitcherProps } from "components/ads/Switcher";
 
 /* eslint-disable @typescript-eslint/ban-types */
 /* TODO: Function and object types need to be updated to enable the lint rule */
@@ -240,6 +241,7 @@ const ViewTypes = {
   KEY_VALUE_VIEW: "KEY_VALUE_VIEW",
   TEXT_VIEW: "TEXT_VIEW",
   BOOL_VIEW: "BOOL_VIEW",
+  TAB_VIEW: "TAB_VIEW",
 };
 type ViewTypes = typeof ViewTypes[keyof typeof ViewTypes];
 
@@ -266,6 +268,7 @@ type TextViewProps = ViewProps & {
   index?: number;
   additionalAutoComplete?: Record<string, Record<string, unknown>>;
 };
+type TabViewProps = ViewProps & SwitcherProps;
 
 const views = {
   [ViewTypes.SELECTOR_VIEW]: function SelectorView(props: SelectorViewProps) {
@@ -326,6 +329,15 @@ const views = {
       </FieldWrapper>
     );
   },
+  [ViewTypes.TAB_VIEW]: function TabView(props: TabViewProps) {
+    return (
+      <FieldWrapper>
+        <ControlWrapper>
+          <Switcher activeObj={props.activeObj} switches={props.switches} />
+        </ControlWrapper>
+      </FieldWrapper>
+    );
+  },
 };
 
 export enum FieldType {
@@ -355,6 +367,7 @@ export enum FieldType {
   DELAY_FIELD = "DELAY_FIELD",
   ID_FIELD = "ID_FIELD",
   CLEAR_INTERVAL_ID_FIELD = "CLEAR_INTERVAL_ID_FIELD",
+  PAGE_NAME_OR_URL_TAB_FIELD = "PAGE_NAME_OR_URL_TAB_FIELD",
 }
 
 type FieldConfig = {
@@ -393,9 +406,10 @@ const fieldConfigs: FieldConfigs = {
         case ActionType.integration:
           value = `${value}.run`;
           break;
-        case ActionType.navigateTo:
-          defaultParams = `'#', {}`;
-          break;
+        // TODO - remove or see what to do here
+        // case ActionType.navigateTo:
+        //   defaultParams = `'#', {}`;
+        //   break;
         case ActionType.jsFunction:
           defaultArgs = option.args ? option.args : [];
           break;
@@ -622,8 +636,18 @@ const fieldConfigs: FieldConfigs = {
     },
     view: ViewTypes.TEXT_VIEW,
   },
+  [FieldType.PAGE_NAME_OR_URL_TAB_FIELD]: {
+    getter: (value: any) => {
+      return enumTypeGetter(value, 0);
+    },
+    setter: (option: any, currentValue: string) => {
+      return enumTypeSetter(option.value, currentValue, 0);
+    },
+    view: ViewTypes.TAB_VIEW,
+  },
 };
 
+// TODO - pass switcher values here and see how to render
 function renderField(props: {
   onValueChange: Function;
   value: string;
@@ -636,6 +660,8 @@ function renderField(props: {
   depth: number;
   maxDepth: number;
   additionalAutoComplete?: Record<string, Record<string, unknown>>;
+  activeNavigateToTab: Switch;
+  navigateToSwitches: Array<Switch>;
 }) {
   const { field } = props;
   const fieldType = field.field;
@@ -752,6 +778,20 @@ function renderField(props: {
         displayValue: displayValue ? displayValue : "",
       });
       break;
+    case FieldType.PAGE_NAME_OR_URL_TAB_FIELD:
+      viewElement = (view as (props: TabViewProps) => JSX.Element)({
+        activeObj: props.activeNavigateToTab,
+        switches: props.navigateToSwitches,
+        label: "",
+        get: () => {
+          console.log("hi");
+        },
+        set: () => {
+          console.log("hi");
+        },
+        value: "",
+      });
+      break;
     case FieldType.ARGUMENT_KEY_VALUE_FIELD:
       viewElement = (view as (props: TextViewProps) => JSX.Element)({
         label: props.field.label || "",
@@ -853,6 +893,8 @@ function Fields(props: {
   depth: number;
   maxDepth: number;
   additionalAutoComplete?: Record<string, Record<string, unknown>>;
+  navigateToSwitches: Array<Switch>;
+  activeNavigateToTab: Switch;
 }) {
   const { fields, ...otherProps } = props;
   if (fields[0].field === FieldType.ACTION_SELECTOR_FIELD) {
@@ -874,6 +916,7 @@ function Fields(props: {
               return (
                 <li key={index}>
                   <Fields
+                    activeNavigateToTab={props.activeNavigateToTab}
                     additionalAutoComplete={props.additionalAutoComplete}
                     depth={props.depth + 1}
                     fields={field}
@@ -882,6 +925,7 @@ function Fields(props: {
                     label={selectorField.label}
                     maxDepth={props.maxDepth}
                     modalDropdownList={props.modalDropdownList}
+                    navigateToSwitches={props.navigateToSwitches}
                     onValueChange={(value: any) => {
                       const parentValue =
                         selectorField.getParentValue &&
@@ -919,6 +963,7 @@ function Fields(props: {
         const selectorField = field[0];
         return (
           <Fields
+            activeNavigateToTab={props.activeNavigateToTab}
             depth={props.depth + 1}
             fields={field}
             integrationOptionTree={props.integrationOptionTree}
@@ -926,6 +971,7 @@ function Fields(props: {
             label={selectorField.label}
             maxDepth={props.maxDepth}
             modalDropdownList={props.modalDropdownList}
+            navigateToSwitches={props.navigateToSwitches}
             onValueChange={(value: any) => {
               const parentValue = selectorField.getParentValue(
                 value.substring(2, value.length - 2),
