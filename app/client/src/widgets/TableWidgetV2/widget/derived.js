@@ -59,7 +59,7 @@ export default {
       index = parsedTriggeredRowIndex;
     }
 
-    const rows = props.processedTableData || [];
+    const rows = props.filteredTableData || props.processedTableData || [];
     let triggeredRow;
 
     /*
