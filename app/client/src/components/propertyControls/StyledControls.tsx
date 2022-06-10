@@ -11,7 +11,7 @@ import Button from "components/ads/Button";
 import TextInput, { TextInputProps } from "components/ads/TextInput";
 import Dropdown from "components/ads/Dropdown";
 import { InputWrapper } from "components/ads/TextInput";
-import { Checkbox } from "components/ads";
+import Checkbox from "components/ads/Checkbox";
 
 type ControlWrapperProps = {
   orientation?: ContainerOrientation;
